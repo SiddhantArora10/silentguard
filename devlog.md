@@ -33,4 +33,30 @@ Get the project structure ready before writing any code.
 
 ---
 
+## Day 2 — Feb 28, 2026 | YAMNet + Real-time Listening
+
+### Goal
+Get YAMNet classifying audio. First from a synthetic test, then from a real microphone.
+
+### What we built
+- **`test_yamnet.py`** — loads YAMNet from TensorFlow Hub, generates a 440 Hz sine wave, classifies it, prints top 5 predictions. Passed successfully.
+- **`listen.py`** — real-time loop: captures 2 seconds of mic audio, flattens it, runs through YAMNet, prints the top classification every cycle.
+
+### Commands run
+```bash
+brew install python@3.12
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install tensorflow tensorflow-hub sounddevice numpy
+python test_yamnet.py   # passed
+python listen.py        # working from mic
+```
+
+### What's next
+- [ ] Add Telegram bot — send alert when specific sound detected
+- [ ] Build Streamlit UI to replace terminal output
+- [ ] Define alert sounds: doorbell, alarm, knocking, dog bark
+
+---
+
 <!-- Add new sessions below as ## Day X sections -->
