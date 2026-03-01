@@ -59,4 +59,31 @@ python listen.py        # working from mic
 
 ---
 
+## Day 3 — Mar 01, 2026 | Telegram Bot + Streamlit UI
+
+### Goal
+Connect YAMNet output to Telegram notifications and build a visual dashboard.
+
+### What we built
+- **`.env`** — stores bot token and chat ID, kept off GitHub via `.gitignore`
+- **`notifier.py`** — sends Telegram message using `requests.post()` directly to the Bot API
+- **`classifier.py`** — maps YAMNet labels to Critical/Knock categories. Knock threshold = 2 consecutive detections before alerting
+- **`listen.py`** updated — now calls `classify()` instead of just printing
+- **`app.py`** — Streamlit dashboard: live "Currently Hearing" metric + "Recent Alerts" log. Uses `st.cache_resource` to load YAMNet once, `st.session_state` for the alert log
+
+### Key decisions
+- Used `requests` directly instead of `python-telegram-bot` async API — simpler
+- Excluded dog barks — too many false positives
+- Render UI before audio capture (not after) — fixes Streamlit flickering
+
+### Commands run
+```bash
+pip install python-dotenv
+.venv/bin/streamlit run app.py
+```
+
+### What's next
+- [ ] Raise confidence threshold — Doorbell triggering at 25% is too low
+- [ ] Deploy to Streamlit Cloud — live URL
+
 <!-- Add new sessions below as ## Day X sections -->

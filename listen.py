@@ -9,6 +9,7 @@ Stop with: Ctrl+C
 import numpy as np
 import sounddevice as sd
 import tensorflow_hub as hub
+from classifier import classify  # Import the alert function from notifier.py 
 import csv
 import io
 import urllib.request
@@ -60,6 +61,10 @@ while True:
     # Print results
     top_label = class_names[top_indices[0]]
     top_confidence = mean_scores[top_indices[0]]
+
+    # Call classify function with top_label and top_confidence
+    classify(top_label, top_confidence)
+
     print(f"Heard: {top_label} ({top_confidence:.0%})", end="")
 
     # Show runner-up if it's reasonably confident

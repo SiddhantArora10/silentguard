@@ -1,13 +1,12 @@
-# Virtual environment
+# Secrets — never push these
+.env
+
+# Python virtual environment
 .venv/
 
 # Python cache
 __pycache__/
 *.pyc
-*.pyo
 
-# Environment variables (secrets)
-.env
-
-# macOS
-.DS_Store
+# TensorFlow cache
+/tmp/
