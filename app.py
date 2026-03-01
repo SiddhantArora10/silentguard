@@ -12,6 +12,7 @@ import io
 import urllib.request
 from datetime import datetime
 from classifier import classify
+from name_detector import is_speech, check_for_name
 
 # --- Page config ---
 st.set_page_config(page_title="SilentGuard", page_icon="🔔", layout="centered")
@@ -84,12 +85,20 @@ st.session_state.current_confidence = top_confidence
 # --- Run classifier — sends Telegram if needed ---
 alert_sent = classify(top_label, top_confidence)
 
+# --- Name detection — runs Whisper only when YAMNet hears speech ---
+name_alert_label = None
+if is_speech(top_label):
+    name_found = check_for_name(audio_flat)
+    if name_found and not alert_sent:
+        alert_sent = True
+        name_alert_label = "Someone called your name!"
+
 # --- Log the alert ---
 if alert_sent:
     timestamp = datetime.now().strftime("%H:%M:%S")
     st.session_state.alerts.insert(0, {
         "Time": timestamp,
-        "Sound": top_label,
+        "Sound": name_alert_label if name_alert_label else top_label,
         "Confidence": f"{top_confidence:.0%}"
     })
     st.session_state.alerts = st.session_state.alerts[:10]
