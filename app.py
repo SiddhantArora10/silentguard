@@ -11,7 +11,7 @@ import csv
 import io
 import urllib.request
 from datetime import datetime
-from classifier import classify
+from classifier import classify, MODES
 from name_detector import is_speech, check_for_name
 
 # --- Page config ---
@@ -49,6 +49,13 @@ st.title("🔔 SilentGuard")
 st.caption("Your AI hearing assistant — listening for sounds that matter.")
 st.markdown("---")
 
+# --- Mode selector ---
+mode = st.selectbox(
+    "Listening Mode",
+    options=list(MODES.keys()),
+    format_func=lambda m: f"{m} — {MODES[m]['description']}"
+)
+
 st.success("🟢 Listening...")
 
 st.subheader("Currently Hearing")
@@ -83,7 +90,7 @@ st.session_state.current_sound = top_label
 st.session_state.current_confidence = top_confidence
 
 # --- Run classifier — sends Telegram if needed ---
-alert_sent = classify(top_label, top_confidence)
+alert_sent = classify(top_label, top_confidence, mode=mode)
 
 # --- Name detection — runs Whisper only when YAMNet hears speech ---
 name_alert_label = None
