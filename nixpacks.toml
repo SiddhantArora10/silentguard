@@ -1,0 +1,8 @@
+[phases.install]
+cmds = [
+  # Install CPU-only PyTorch first (~700MB instead of 2.5GB with CUDA)
+  # Railway has no GPU — CUDA is wasted space
+  "pip install torch --index-url https://download.pytorch.org/whl/cpu",
+  # Install everything else — torch is already there so transformers/whisper won't re-download it
+  "pip install -r requirements.txt"
+]
