@@ -1,14 +1,14 @@
 """
-app.py — SilentGuard Streamlit UI
+app.py — SilentGuard Streamlit UI (Cloud Version)
 Run with: streamlit run app.py
 """
 
 import streamlit as st
 import numpy as np
-import sounddevice as sd
+import soundfile as sf
+import io
 import tensorflow_hub as hub
 import csv
-import io
 import urllib.request
 from datetime import datetime
 from classifier import classify, MODES
@@ -39,12 +39,11 @@ class_names = load_class_names()
 if "alerts" not in st.session_state:
     st.session_state.alerts = []
 if "current_sound" not in st.session_state:
-    st.session_state.current_sound = "Starting up..."
+    st.session_state.current_sound = "Waiting for audio..."
 if "current_confidence" not in st.session_state:
     st.session_state.current_confidence = 0.0
 
-# --- UI: render from session_state FIRST, before capturing audio ---
-# This way the content is visible during the 2-second audio capture window
+# --- UI ---
 st.title("🔔 SilentGuard")
 st.caption("Your AI hearing assistant — listening for sounds that matter.")
 st.markdown("---")
@@ -56,8 +55,7 @@ mode = st.selectbox(
     format_func=lambda m: f"{m} — {MODES[m]['description']}"
 )
 
-st.success("🟢 Listening...")
-
+# --- Show current detection (rendered from session_state) ---
 st.subheader("Currently Hearing")
 st.metric(
     label=st.session_state.current_sound,
@@ -70,45 +68,65 @@ if st.session_state.alerts:
 else:
     st.caption("No alerts yet — all quiet.")
 
-# --- NOW capture audio (UI stays visible during this 2-second wait) ---
-SAMPLE_RATE = 16000
-DURATION = 2
+# --- Mic input from browser ---
+# st.audio_input captures audio from the user's browser mic.
+# Works on desktop and mobile — no laptop mic needed.
+SAMPLE_RATE = 16000  # YAMNet requires 16kHz audio
 
-audio = sd.rec(int(DURATION * SAMPLE_RATE), samplerate=SAMPLE_RATE, channels=1, dtype='float32')
-sd.wait()
+st.markdown("---")
+audio_bytes = st.audio_input("🎤 Press to record, then press stop when done")
 
-audio_flat = audio.flatten()
-scores, embeddings, spectrogram = model(audio_flat)
-mean_scores = np.mean(scores.numpy(), axis=0)
-top_indices = np.argsort(mean_scores)[::-1]
+if audio_bytes is not None:
+    # Read the WAV audio that the browser recorded
+    audio_data, sample_rate = sf.read(io.BytesIO(audio_bytes.read()))
 
-top_label = class_names[top_indices[0]]
-top_confidence = float(mean_scores[top_indices[0]])
+    # Convert stereo to mono if needed (YAMNet expects single channel)
+    if audio_data.ndim > 1:
+        audio_data = np.mean(audio_data, axis=1)
 
-# --- Update session_state with new detection ---
-st.session_state.current_sound = top_label
-st.session_state.current_confidence = top_confidence
+    # Resample to 16kHz if needed (browser may record at 44100Hz or 48000Hz)
+    if sample_rate != SAMPLE_RATE:
+        num_samples = int(len(audio_data) * SAMPLE_RATE / sample_rate)
+        audio_flat = np.interp(
+            np.linspace(0, len(audio_data), num_samples),
+            np.arange(len(audio_data)),
+            audio_data
+        ).astype('float32')
+    else:
+        audio_flat = audio_data.flatten().astype('float32')
 
-# --- Run classifier — sends Telegram if needed ---
-alert_sent = classify(top_label, top_confidence, mode=mode)
+    # --- Run YAMNet on the audio ---
+    scores, embeddings, spectrogram = model(audio_flat)
+    mean_scores = np.mean(scores.numpy(), axis=0)
+    top_indices = np.argsort(mean_scores)[::-1]
 
-# --- Name detection — runs Whisper only when YAMNet hears speech ---
-name_alert_label = None
-if is_speech(top_label):
-    name_found = check_for_name(audio_flat)
-    if name_found and not alert_sent:
-        alert_sent = True
-        name_alert_label = "Someone called your name!"
+    top_label = class_names[top_indices[0]]
+    top_confidence = float(mean_scores[top_indices[0]])
 
-# --- Log the alert ---
-if alert_sent:
-    timestamp = datetime.now().strftime("%H:%M:%S")
-    st.session_state.alerts.insert(0, {
-        "Time": timestamp,
-        "Sound": name_alert_label if name_alert_label else top_label,
-        "Confidence": f"{top_confidence:.0%}"
-    })
-    st.session_state.alerts = st.session_state.alerts[:10]
+    # --- Update session state with new detection ---
+    st.session_state.current_sound = top_label
+    st.session_state.current_confidence = top_confidence
 
-# --- Rerun to capture the next audio chunk ---
-st.rerun()
+    # --- Run classifier — sends Telegram if needed ---
+    alert_sent = classify(top_label, top_confidence, mode=mode)
+
+    # --- Name detection — runs Whisper only when YAMNet hears speech ---
+    name_alert_label = None
+    if is_speech(top_label):
+        name_found = check_for_name(audio_flat)
+        if name_found and not alert_sent:
+            alert_sent = True
+            name_alert_label = "Someone called your name!"
+
+    # --- Log the alert ---
+    if alert_sent:
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        st.session_state.alerts.insert(0, {
+            "Time": timestamp,
+            "Sound": name_alert_label if name_alert_label else top_label,
+            "Confidence": f"{top_confidence:.0%}"
+        })
+        st.session_state.alerts = st.session_state.alerts[:10]
+
+    # Rerun to refresh the display with updated results
+    st.rerun()

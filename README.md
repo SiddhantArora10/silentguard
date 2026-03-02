@@ -1,3 +1,14 @@
+---
+title: SilentGuard
+emoji: 🔔
+colorFrom: blue
+colorTo: green
+sdk: streamlit
+sdk_version: 1.54.0
+app_file: app.py
+pinned: false
+---
+
 # SilentGuard 🔔
 
 **AI-powered sound awareness for the hearing-impaired.**
@@ -20,12 +31,21 @@ SilentGuard listens to your environment using your microphone and uses AI to cla
 
 **You don't need to hear it. Your phone will tell you.**
 
-### Sounds it detects
+### Features
 
-| Category | Sounds |
-|----------|--------|
-| Critical (immediate alert) | Fire alarm, Smoke detector, Carbon monoxide alarm |
-| Knock (alert after 2 detections) | Doorbell, Knock, Bang, Slam, Door |
+- **Real-time sound classification** — YAMNet classifies 521 sound categories from your mic every 2 seconds
+- **Smart alerts** — only triggers above 40% confidence, and knock-type sounds need 2 consecutive detections
+- **Name detection** — Whisper speech-to-text listens for your name being called, sends an alert when heard
+- **3 listening modes** — switch between Sleep, Focus, and Music depending on your situation
+- **Telegram notifications** — instant phone alert with the sound name and mode label
+
+### Listening Modes
+
+| Mode | When to use | What it alerts on |
+|------|-------------|-------------------|
+| **Sleep** | Hearing aids off at night | Everything — alarms, knocks, doorbells, baby cry, glass break |
+| **Focus** | Working or studying | Critical only — fire alarm, smoke detector, carbon monoxide |
+| **Music** | Listening to music at home | Urgent + social — alarms + doorbell + knocking |
 
 ---
 
@@ -33,14 +53,17 @@ SilentGuard listens to your environment using your microphone and uses AI to cla
 
 ```
 Microphone → YAMNet AI → Classifier → Telegram notification
-                              ↓
-                      Streamlit dashboard
+                  ↓               ↓
+           Speech detected?  Streamlit dashboard
+                  ↓
+            Whisper STT → Name detected? → Telegram notification
 ```
 
 1. Captures 2 seconds of audio from your microphone every cycle
 2. Passes it through **YAMNet** — Google's audio classifier trained on 521 sound categories
-3. If a match is found above 40% confidence, checks if it's a sound that matters
-4. Sends a Telegram message to your phone instantly
+3. If a match is found above 40% confidence, checks if it's a sound that matters in the current mode
+4. If speech is detected, **Whisper** transcribes it and checks if your name was called
+5. Sends a Telegram message to your phone instantly
 
 ---
 
@@ -52,7 +75,8 @@ Microphone → YAMNet AI → Classifier → Telegram notification
 | **TensorFlow Hub** | Loads the YAMNet model |
 | **Streamlit** | Live dashboard showing what's being heard |
 | **Telegram Bot API** | Sends phone alerts when sounds are detected |
-| **sounddevice** | Captures real-time microphone audio |
+| **soundfile** | Reads browser mic audio for cloud deployment |
+| **Whisper (OpenAI)** | Speech-to-text for name detection |
 | **Python** | Everything is Python |
 
 ---
