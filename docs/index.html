@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SilentGuard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f0f0f;
+      color: #f0f0f0;
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 28px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    select {
+      width: 100%;
+      padding: 12px 14px;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 10px;
+      color: #f0f0f0;
+      font-size: 1rem;
+      margin-bottom: 20px;
+      appearance: none;
+    }
+
+    #toggleBtn {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: #2563eb;
+      color: white;
+      transition: background 0.2s;
+      margin-bottom: 20px;
+    }
+
+    #toggleBtn.listening {
+      background: #dc2626;
+    }
+
+    #toggleBtn:disabled {
+      background: #444;
+      cursor: not-allowed;
+    }
+
+    .card {
+      background: #1e1e1e;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .card-label {
+      font-size: 0.75rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    #statusText {
+      font-size: 0.95rem;
+      color: #888;
+    }
+
+    #statusText.active {
+      color: #22c55e;
+    }
+
+    #currentSound {
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: #f0f0f0;
+    }
+
+    #currentConfidence {
+      font-size: 0.9rem;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    #alertsContainer {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .alert-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #2a2a2a;
+      font-size: 0.9rem;
+    }
+
+    .alert-row:last-child {
+      border-bottom: none;
+    }
+
+    .alert-time {
+      color: #666;
+      font-size: 0.8rem;
+      min-width: 70px;
+    }
+
+    .alert-sound {
+      flex: 1;
+      padding: 0 12px;
+      color: #f0f0f0;
+    }
+
+    .alert-confidence {
+      color: #888;
+      font-size: 0.8rem;
+    }
+
+    .no-alerts {
+      color: #555;
+      font-size: 0.9rem;
+    }
+
+    #errorMsg {
+      background: #3b1010;
+      border: 1px solid #7f1d1d;
+      color: #fca5a5;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🔔 SilentGuard</h1>
+  <p class="subtitle">Your AI hearing assistant</p>
+
+  <div id="errorMsg"></div>
+
+  <label for="modeSelect">Listening Mode</label>
+  <select id="modeSelect">
+    <option value="Sleep">Sleep — Hearing aids off, maximum coverage</option>
+    <option value="Focus">Focus — Working, critical alerts only</option>
+    <option value="Music">Music — Listening, urgent + door</option>
+  </select>
+
+  <button id="toggleBtn" onclick="toggleListening()">Start Listening</button>
+
+  <div class="card">
+    <div class="card-label">Status</div>
+    <div id="statusText">Not listening</div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Currently Hearing</div>
+    <div id="currentSound">—</div>
+    <div id="currentConfidence"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Recent Alerts</div>
+    <div id="alertsContainer">
+      <div class="no-alerts" id="noAlertsMsg">No alerts yet — all quiet.</div>
+    </div>
+  </div>
+
+  <script>
+    // ─── IMPORTANT: Replace this with your Railway URL after deploying the backend ───
+    const BACKEND_URL = "YOUR_RAILWAY_URL";
+    // Example: "https://silentguard-production.up.railway.app"
+
+    let isListening = false;
+    let micStream = null;
+    let mediaRecorder = null;
+    let alertCount = 0;
+
+    async function toggleListening() {
+      if (isListening) {
+        stopListening();
+      } else {
+        await startListening();
+      }
+    }
+
+    async function startListening() {
+      // Check browser support
+      if (!navigator.mediaDevices || !window.MediaRecorder) {
+        showError("Your browser doesn't support microphone access. Try Chrome on Android.");
+        return;
+      }
+
+      try {
+        // Ask for microphone permission
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      } catch (err) {
+        showError("Microphone permission denied. Please allow mic access and try again.");
+        return;
+      }
+
+      isListening = true;
+      clearError();
+      document.getElementById("toggleBtn").textContent = "Stop Listening";
+      document.getElementById("toggleBtn").classList.add("listening");
+      document.getElementById("statusText").textContent = "🟢 Listening continuously...";
+      document.getElementById("statusText").classList.add("active");
+
+      // Start the 2-second capture loop
+      recordChunk();
+    }
+
+    function stopListening() {
+      isListening = false;
+
+      if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+      }
+      if (micStream) {
+        micStream.getTracks().forEach(t => t.stop());
+        micStream = null;
+      }
+
+      document.getElementById("toggleBtn").textContent = "Start Listening";
+      document.getElementById("toggleBtn").classList.remove("listening");
+      document.getElementById("statusText").textContent = "Stopped";
+      document.getElementById("statusText").classList.remove("active");
+    }
+
+    function recordChunk() {
+      // Stop here if user pressed Stop
+      if (!isListening || !micStream) return;
+
+      const chunks = [];
+      mediaRecorder = new MediaRecorder(micStream);
+
+      // Collect audio data as it comes in
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      // When the 2-second chunk is done, send it to the backend
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        await sendToBackend(blob);
+        // Immediately start the next 2-second chunk
+        if (isListening) recordChunk();
+      };
+
+      mediaRecorder.start();
+
+      // Stop after 2 seconds — this triggers onstop above
+      setTimeout(() => {
+        if (mediaRecorder && mediaRecorder.state === "recording") {
+          mediaRecorder.stop();
+        }
+      }, 2000);
+    }
+
+    async function sendToBackend(blob) {
+      const mode = document.getElementById("modeSelect").value;
+
+      const formData = new FormData();
+      formData.append("audio", blob, "chunk.webm");
+      formData.append("mode", mode);
+
+      try {
+        const response = await fetch(`${BACKEND_URL}/classify`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          console.warn("Backend returned error:", response.status);
+          return;
+        }
+
+        const result = await response.json();
+        updateUI(result);
+
+      } catch (err) {
+        // Network error — backend might be waking up (cold start)
+        console.warn("Request failed:", err.message);
+        document.getElementById("statusText").textContent = "⏳ Connecting to backend...";
+      }
+    }
+
+    function updateUI(result) {
+      // Update "Currently Hearing" display
+      document.getElementById("currentSound").textContent = result.label || "—";
+      document.getElementById("currentConfidence").textContent =
+        result.confidence ? `${(result.confidence * 100).toFixed(0)}% confidence` : "";
+
+      // If an alert was sent, add it to the alerts list
+      if (result.alert_sent) {
+        const time = new Date().toLocaleTimeString();
+        const soundLabel = result.name_detected ? "📣 Someone called your name!" : result.label;
+        const confidence = result.confidence ? `${(result.confidence * 100).toFixed(0)}%` : "";
+
+        // Remove "no alerts" message on first alert
+        if (alertCount === 0) {
+          document.getElementById("noAlertsMsg").remove();
+        }
+        alertCount++;
+
+        // Add new alert row at the top
+        const container = document.getElementById("alertsContainer");
+        const row = document.createElement("div");
+        row.className = "alert-row";
+        row.innerHTML = `
+          <span class="alert-time">${time}</span>
+          <span class="alert-sound">${soundLabel}</span>
+          <span class="alert-confidence">${confidence}</span>
+        `;
+        container.insertBefore(row, container.firstChild);
+
+        // Keep only the last 20 alerts to avoid the list growing forever
+        const rows = container.querySelectorAll(".alert-row");
+        if (rows.length > 20) rows[rows.length - 1].remove();
+      }
+
+      // Update status text (shows what's happening right now)
+      document.getElementById("statusText").textContent = "🟢 Listening continuously...";
+      document.getElementById("statusText").classList.add("active");
+    }
+
+    function showError(msg) {
+      const el = document.getElementById("errorMsg");
+      el.textContent = msg;
+      el.style.display = "block";
+    }
+
+    function clearError() {
+      document.getElementById("errorMsg").style.display = "none";
+    }
+  </script>
+
+</body>
+</html>

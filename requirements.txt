@@ -1,11 +1,11 @@
-streamlit==1.54.0
-streamlit-webrtc
-av
+fastapi
+uvicorn[standard]
+python-multipart
 transformers
 torch
 openai-whisper
 python-dotenv
-python-telegram-bot==22.6
 requests
 numpy
+av
 setuptools==71.0.0
