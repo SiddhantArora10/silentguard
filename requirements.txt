@@ -44,6 +44,7 @@ pycparser==3.0
 pydeck==0.9.1
 Pygments==2.19.2
 python-dateutil==2.9.0.post0
+python-dotenv
 python-telegram-bot==22.6
 pytz==2025.2
 referencing==0.37.0
