@@ -8,13 +8,20 @@ How it works:
 4. If yes, send a Telegram alert
 """
 
-import whisper
 import numpy as np
 from notifier import send_alert
 
-# Load Whisper's smallest model — fast enough for real-time use
-# This downloads ~150MB the first time, then cached locally
-whisper_model = whisper.load_model("tiny")
+# Whisper is loaded lazily — only when speech is actually detected.
+# This avoids a startup crash caused by TensorFlow and PyTorch
+# loading at the same time (they conflict if both init together).
+_whisper_model = None
+
+def _get_whisper_model():
+    global _whisper_model
+    if _whisper_model is None:
+        import whisper
+        _whisper_model = whisper.load_model("tiny")
+    return _whisper_model
 
 # The name we're listening for — exact and phonetic variants
 # Whisper sometimes mishears Indian names, so we catch common transcriptions
@@ -50,6 +57,9 @@ def check_for_name(audio_data):
     """
     # Whisper needs float32 audio
     audio = audio_data.astype(np.float32)
+
+    # Load Whisper lazily (first call only — cached after that)
+    whisper_model = _get_whisper_model()
 
     # initial_prompt primes Whisper to expect this name — improves accuracy significantly
     result = whisper_model.transcribe(audio, fp16=False, initial_prompt="My name is Siddhant.")
