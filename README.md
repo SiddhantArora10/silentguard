@@ -1,18 +1,8 @@
----
-title: SilentGuard
-emoji: 🔔
-colorFrom: blue
-colorTo: green
-sdk: streamlit
-sdk_version: 1.54.0
-app_file: app.py
-python_version: "3.12"
-pinned: false
----
-
 # SilentGuard 🔔
 
 **AI-powered sound awareness for the hearing-impaired.**
+
+🌐 **Live demo:** https://siddhantarora10.github.io/silentguard
 
 ---
 
@@ -53,18 +43,23 @@ SilentGuard listens to your environment using your microphone and uses AI to cla
 ## How It Works
 
 ```
-Microphone → YAMNet AI → Classifier → Telegram notification
-                  ↓               ↓
-           Speech detected?  Streamlit dashboard
-                  ↓
-            Whisper STT → Name detected? → Telegram notification
+Browser mic → MediaRecorder (2s chunks) → POST → FastAPI backend
+                                                        ↓
+                                               AST model classifies
+                                                        ↓
+                                              classifier.py (modes/thresholds)
+                                                        ↓
+                                         Speech? → Whisper → name detected?
+                                                        ↓
+                                              Telegram notification
 ```
 
-1. Captures 2 seconds of audio from your microphone every cycle
-2. Passes it through **YAMNet** — Google's audio classifier trained on 521 sound categories
-3. If a match is found above 40% confidence, checks if it's a sound that matters in the current mode
-4. If speech is detected, **Whisper** transcribes it and checks if your name was called
-5. Sends a Telegram message to your phone instantly
+1. Browser captures 2 seconds of mic audio using MediaRecorder API
+2. Sends it as an HTTP POST to the FastAPI backend (Railway)
+3. Backend runs it through **AST** — an audio classifier trained on 527 AudioSet categories
+4. If a match is found above 40% confidence, checks if it matters in the current mode
+5. If speech is detected, **Whisper** transcribes it and checks if your name was called
+6. Sends a Telegram message to your phone instantly
 
 ---
 
@@ -72,12 +67,13 @@ Microphone → YAMNet AI → Classifier → Telegram notification
 
 | Tool | What it does |
 |------|-------------|
-| **YAMNet** | Google's pre-trained audio classifier (521 sound categories, no training needed) |
-| **TensorFlow Hub** | Loads the YAMNet model |
-| **Streamlit** | Live dashboard showing what's being heard |
+| **AST (MIT/HuggingFace)** | Audio Spectrogram Transformer — 527 AudioSet categories, PyTorch |
+| **FastAPI** | Python backend API — receives audio, runs classification, sends alerts |
+| **Whisper (OpenAI)** | Speech-to-text for name detection (lazy-loaded, tiny model) |
 | **Telegram Bot API** | Sends phone alerts when sounds are detected |
-| **soundfile** | Reads browser mic audio for cloud deployment |
-| **Whisper (OpenAI)** | Speech-to-text for name detection |
+| **HTML/JS (MediaRecorder)** | Browser frontend — captures 2s audio chunks, POSTs to backend |
+| **Railway** | Hosts the FastAPI backend |
+| **GitHub Pages** | Hosts the static frontend |
 | **Python** | Everything is Python |
 
 ---
