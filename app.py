@@ -19,9 +19,29 @@ from name_detector import is_speech, check_for_name
 # --- Page config (must be first Streamlit command) ---
 st.set_page_config(page_title="SilentGuard", page_icon="🔔", layout="centered")
 
-# --- Free public STUN server for WebRTC browser connection ---
+# --- STUN + TURN servers for WebRTC browser connection ---
+# STUN: helps discover public IP
+# TURN: relays audio when direct connection fails (needed on cloud servers)
+# OpenRelay is a free public TURN server — no account needed
 RTC_CONFIGURATION = RTCConfiguration(
-    {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+    {"iceServers": [
+        {"urls": ["stun:stun.l.google.com:19302"]},
+        {
+            "urls": ["turn:openrelay.metered.ca:80"],
+            "username": "openrelayproject",
+            "credential": "openrelayproject"
+        },
+        {
+            "urls": ["turn:openrelay.metered.ca:443"],
+            "username": "openrelayproject",
+            "credential": "openrelayproject"
+        },
+        {
+            "urls": ["turns:openrelay.metered.ca:443"],
+            "username": "openrelayproject",
+            "credential": "openrelayproject"
+        }
+    ]}
 )
 
 # --- Queue: background audio thread passes results to main UI thread ---
