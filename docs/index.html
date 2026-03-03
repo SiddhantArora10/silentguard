@@ -62,14 +62,8 @@
       margin-bottom: 20px;
     }
 
-    #toggleBtn.listening {
-      background: #dc2626;
-    }
-
-    #toggleBtn:disabled {
-      background: #444;
-      cursor: not-allowed;
-    }
+    #toggleBtn.listening { background: #dc2626; }
+    #toggleBtn:disabled { background: #444; cursor: not-allowed; }
 
     .card {
       background: #1e1e1e;
@@ -91,26 +85,84 @@
       color: #888;
     }
 
-    #statusText.active {
-      color: #22c55e;
+    #statusText.active { color: #22c55e; }
+
+    /* --- Detection Log --- */
+    #logContainer {
+      max-height: 400px;
+      overflow-y: auto;
     }
 
-    #currentSound {
-      font-size: 1.4rem;
-      font-weight: 600;
+    .log-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid #2a2a2a;
+      font-size: 0.85rem;
+    }
+
+    .log-row:last-child { border-bottom: none; }
+
+    /* highlighted row when an alert was triggered */
+    .log-row.alerted {
+      background: #1a2a1a;
+      margin: 0 -16px;
+      padding: 9px 16px;
+      border-radius: 6px;
+    }
+
+    .log-time {
+      color: #555;
+      font-size: 0.75rem;
+      min-width: 65px;
+      flex-shrink: 0;
+    }
+
+    /* small ▶ play button */
+    .play-btn {
+      background: #2a2a2a;
+      border: none;
+      border-radius: 6px;
+      color: #aaa;
+      width: 26px;
+      height: 26px;
+      cursor: pointer;
+      font-size: 0.65rem;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .play-btn:hover { background: #333; color: #fff; }
+
+    .log-label {
+      flex: 1;
       color: #f0f0f0;
     }
 
-    #currentConfidence {
-      font-size: 0.9rem;
-      color: #888;
-      margin-top: 4px;
+    /* "processing..." state before backend responds */
+    .log-row.pending .log-label {
+      color: #555;
+      font-style: italic;
     }
 
-    #alertsContainer {
-      max-height: 300px;
-      overflow-y: auto;
+    .log-confidence {
+      color: #888;
+      font-size: 0.8rem;
+      min-width: 34px;
+      text-align: right;
+      flex-shrink: 0;
     }
+
+    .no-logs {
+      color: #555;
+      font-size: 0.9rem;
+    }
+
+    /* --- Alerts section (Telegram alerts only) --- */
+    #alertsContainer { max-height: 300px; overflow-y: auto; }
 
     .alert-row {
       display: flex;
@@ -121,9 +173,7 @@
       font-size: 0.9rem;
     }
 
-    .alert-row:last-child {
-      border-bottom: none;
-    }
+    .alert-row:last-child { border-bottom: none; }
 
     .alert-time {
       color: #666;
@@ -131,21 +181,9 @@
       min-width: 70px;
     }
 
-    .alert-sound {
-      flex: 1;
-      padding: 0 12px;
-      color: #f0f0f0;
-    }
-
-    .alert-confidence {
-      color: #888;
-      font-size: 0.8rem;
-    }
-
-    .no-alerts {
-      color: #555;
-      font-size: 0.9rem;
-    }
+    .alert-sound { flex: 1; padding: 0 12px; color: #f0f0f0; }
+    .alert-confidence { color: #888; font-size: 0.8rem; }
+    .no-alerts { color: #555; font-size: 0.9rem; }
 
     #errorMsg {
       background: #3b1010;
@@ -180,28 +218,30 @@
     <div id="statusText">Not listening</div>
   </div>
 
+  <!-- Detection log — shows every chunk as it's captured and classified -->
   <div class="card">
-    <div class="card-label">Currently Hearing</div>
-    <div id="currentSound">—</div>
-    <div id="currentConfidence"></div>
+    <div class="card-label">Detection Log</div>
+    <div id="logContainer">
+      <div class="no-logs" id="noLogsMsg">No detections yet — press Start Listening.</div>
+    </div>
   </div>
 
+  <!-- Alerts — only shows chunks that triggered a Telegram notification -->
   <div class="card">
-    <div class="card-label">Recent Alerts</div>
+    <div class="card-label">Alerts Sent</div>
     <div id="alertsContainer">
       <div class="no-alerts" id="noAlertsMsg">No alerts yet — all quiet.</div>
     </div>
   </div>
 
   <script>
-    // ─── IMPORTANT: Replace this with your Railway URL after deploying the backend ───
     const BACKEND_URL = "https://silentguard-production-6cbc.up.railway.app";
-    // Example: "https://silentguard-production.up.railway.app"
 
     let isListening = false;
     let micStream = null;
     let mediaRecorder = null;
     let alertCount = 0;
+    let logCounter = 0;
 
     async function toggleListening() {
       if (isListening) {
@@ -212,14 +252,12 @@
     }
 
     async function startListening() {
-      // Check browser support
       if (!navigator.mediaDevices || !window.MediaRecorder) {
         showError("Your browser doesn't support microphone access. Try Chrome on Android.");
         return;
       }
 
       try {
-        // Ask for microphone permission
         micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       } catch (err) {
         showError("Microphone permission denied. Please allow mic access and try again.");
@@ -233,7 +271,6 @@
       document.getElementById("statusText").textContent = "🟢 Listening continuously...";
       document.getElementById("statusText").classList.add("active");
 
-      // Start the 2-second capture loop
       recordChunk();
     }
 
@@ -255,29 +292,30 @@
     }
 
     function recordChunk() {
-      // Stop here if user pressed Stop
       if (!isListening || !micStream) return;
 
       const chunks = [];
       mediaRecorder = new MediaRecorder(micStream);
 
-      // Collect audio data as it comes in
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunks.push(e.data);
       };
 
-      // When the 2-second chunk is done, send it to the backend
       mediaRecorder.onstop = async () => {
         const blob = new Blob(chunks, { type: "audio/webm" });
-        // Start next chunk immediately — don't wait for backend
+        const blobUrl = URL.createObjectURL(blob);
+
+        // Add a log entry immediately — shows "processing..." before backend responds
+        const logId = addLogEntry(blobUrl);
+
+        // Start next chunk immediately — no gap in recording
         if (isListening) recordChunk();
-        // Send this chunk in background (no await = non-blocking)
-        sendToBackend(blob);
+
+        // Send to backend in background — updates the log entry when done
+        sendToBackend(blob, logId);
       };
 
       mediaRecorder.start();
-
-      // Stop after 2 seconds — this triggers onstop above
       setTimeout(() => {
         if (mediaRecorder && mediaRecorder.state === "recording") {
           mediaRecorder.stop();
@@ -285,7 +323,85 @@
       }, 2000);
     }
 
-    async function sendToBackend(blob) {
+    // Adds a new row to the Detection Log immediately when a chunk is captured
+    function addLogEntry(blobUrl) {
+      const id = `log-${++logCounter}`;
+      const time = new Date().toLocaleTimeString();
+
+      const container = document.getElementById("logContainer");
+      const placeholder = document.getElementById("noLogsMsg");
+      if (placeholder) placeholder.remove();
+
+      // Audio object for playback when ▶ is clicked
+      const audioObj = new Audio(blobUrl);
+
+      const row = document.createElement("div");
+      row.className = "log-row pending";
+      row.id = id;
+
+      // Timestamp
+      const timeSpan = document.createElement("span");
+      timeSpan.className = "log-time";
+      timeSpan.textContent = time;
+
+      // Play button — lets you replay what the mic captured
+      const playBtn = document.createElement("button");
+      playBtn.className = "play-btn";
+      playBtn.textContent = "▶";
+      playBtn.title = "Play this clip";
+      playBtn.onclick = () => {
+        audioObj.currentTime = 0;
+        audioObj.play();
+        playBtn.textContent = "⏹";
+        audioObj.onended = () => { playBtn.textContent = "▶"; };
+      };
+
+      // Sound label — starts as "processing...", updated when backend responds
+      const labelSpan = document.createElement("span");
+      labelSpan.className = "log-label";
+      labelSpan.textContent = "processing...";
+
+      // Confidence — filled in when backend responds
+      const confSpan = document.createElement("span");
+      confSpan.className = "log-confidence";
+
+      row.appendChild(timeSpan);
+      row.appendChild(playBtn);
+      row.appendChild(labelSpan);
+      row.appendChild(confSpan);
+
+      // Newest entry at the top
+      container.insertBefore(row, container.firstChild);
+
+      // Keep max 30 rows — remove oldest and free its memory
+      const rows = container.querySelectorAll(".log-row");
+      if (rows.length > 30) {
+        rows[rows.length - 1].remove();
+      }
+
+      return id;
+    }
+
+    // Updates a log row after the backend responds
+    function updateLogEntry(id, result) {
+      const row = document.getElementById(id);
+      if (!row) return;
+
+      row.classList.remove("pending");
+
+      const label = result.name_detected ? "📣 Name detected!" : (result.label || "—");
+      const conf = result.confidence ? `${(result.confidence * 100).toFixed(0)}%` : "";
+
+      row.querySelector(".log-label").textContent = label;
+      row.querySelector(".log-confidence").textContent = conf;
+
+      // Highlight the row if this triggered an alert
+      if (result.alert_sent) {
+        row.classList.add("alerted");
+      }
+    }
+
+    async function sendToBackend(blob, logId) {
       const mode = document.getElementById("modeSelect").value;
 
       const formData = new FormData();
@@ -300,56 +416,63 @@
 
         if (!response.ok) {
           console.warn("Backend returned error:", response.status);
+          markLogError(logId, "backend error");
           return;
         }
 
         const result = await response.json();
-        updateUI(result);
+
+        // Update the log row with the actual result
+        updateLogEntry(logId, result);
+
+        // If this triggered an alert, also add it to the Alerts section
+        if (result.alert_sent) {
+          addAlertRow(result);
+        }
+
+        document.getElementById("statusText").textContent = "🟢 Listening continuously...";
+        document.getElementById("statusText").classList.add("active");
 
       } catch (err) {
-        // Network error — backend might be waking up (cold start)
         console.warn("Request failed:", err.message);
+        markLogError(logId, "connection error");
         document.getElementById("statusText").textContent = "⏳ Connecting to backend...";
       }
     }
 
-    function updateUI(result) {
-      // Update "Currently Hearing" display
-      document.getElementById("currentSound").textContent = result.label || "—";
-      document.getElementById("currentConfidence").textContent =
-        result.confidence ? `${(result.confidence * 100).toFixed(0)}% confidence` : "";
+    // Marks a log row as errored (backend unreachable or failed)
+    function markLogError(id, msg) {
+      const row = document.getElementById(id);
+      if (!row) return;
+      row.classList.remove("pending");
+      row.querySelector(".log-label").textContent = msg;
+      row.querySelector(".log-label").style.color = "#7f1d1d";
+    }
 
-      // If an alert was sent, add it to the alerts list
-      if (result.alert_sent) {
-        const time = new Date().toLocaleTimeString();
-        const soundLabel = result.name_detected ? "📣 Someone called your name!" : result.label;
-        const confidence = result.confidence ? `${(result.confidence * 100).toFixed(0)}%` : "";
+    // Adds a row to the Alerts Sent section (only for sounds that triggered Telegram)
+    function addAlertRow(result) {
+      const time = new Date().toLocaleTimeString();
+      const soundLabel = result.name_detected ? "📣 Someone called your name!" : result.label;
+      const confidence = result.confidence ? `${(result.confidence * 100).toFixed(0)}%` : "";
 
-        // Remove "no alerts" message on first alert
-        if (alertCount === 0) {
-          document.getElementById("noAlertsMsg").remove();
-        }
-        alertCount++;
-
-        // Add new alert row at the top
-        const container = document.getElementById("alertsContainer");
-        const row = document.createElement("div");
-        row.className = "alert-row";
-        row.innerHTML = `
-          <span class="alert-time">${time}</span>
-          <span class="alert-sound">${soundLabel}</span>
-          <span class="alert-confidence">${confidence}</span>
-        `;
-        container.insertBefore(row, container.firstChild);
-
-        // Keep only the last 20 alerts to avoid the list growing forever
-        const rows = container.querySelectorAll(".alert-row");
-        if (rows.length > 20) rows[rows.length - 1].remove();
+      if (alertCount === 0) {
+        const placeholder = document.getElementById("noAlertsMsg");
+        if (placeholder) placeholder.remove();
       }
+      alertCount++;
 
-      // Update status text (shows what's happening right now)
-      document.getElementById("statusText").textContent = "🟢 Listening continuously...";
-      document.getElementById("statusText").classList.add("active");
+      const container = document.getElementById("alertsContainer");
+      const row = document.createElement("div");
+      row.className = "alert-row";
+      row.innerHTML = `
+        <span class="alert-time">${time}</span>
+        <span class="alert-sound">${soundLabel}</span>
+        <span class="alert-confidence">${confidence}</span>
+      `;
+      container.insertBefore(row, container.firstChild);
+
+      const rows = container.querySelectorAll(".alert-row");
+      if (rows.length > 20) rows[rows.length - 1].remove();
     }
 
     function showError(msg) {
