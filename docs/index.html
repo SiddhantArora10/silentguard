@@ -269,9 +269,10 @@
       // When the 2-second chunk is done, send it to the backend
       mediaRecorder.onstop = async () => {
         const blob = new Blob(chunks, { type: "audio/webm" });
-        await sendToBackend(blob);
-        // Immediately start the next 2-second chunk
+        // Start next chunk immediately — don't wait for backend
         if (isListening) recordChunk();
+        // Send this chunk in background (no await = non-blocking)
+        sendToBackend(blob);
       };
 
       mediaRecorder.start();
