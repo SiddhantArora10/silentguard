@@ -24,7 +24,25 @@
     .subtitle {
       color: #888;
       font-size: 0.9rem;
+      margin-bottom: 12px;
+    }
+
+    .intro {
+      color: #aaa;
+      font-size: 0.9rem;
+      line-height: 1.5;
       margin-bottom: 28px;
+    }
+
+    #coldStartBanner {
+      background: #1c1c10;
+      border: 1px solid #555;
+      color: #ccc;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+      display: none;
     }
 
     label {
@@ -202,7 +220,9 @@
 
   <h1>🔔 SilentGuard</h1>
   <p class="subtitle">Your AI hearing assistant</p>
+  <p class="intro">I'm hearing-impaired. When my hearing aids are off, I can't hear alarms, doorbells, or someone calling my name. SilentGuard uses AI to listen for me and sends alerts to my phone.</p>
 
+  <div id="coldStartBanner">⏳ Backend is waking up — this takes about 30 seconds on the free tier. Hang tight.</div>
   <div id="errorMsg"></div>
 
   <label for="modeSelect">Listening Mode</label>
@@ -340,6 +360,7 @@ async function toggleListening() {
       const row = document.createElement("div");
       row.className = "log-row pending";
       row.id = id;
+      row.dataset.blobUrl = blobUrl; // stored so we can revoke it when this row is removed
 
       // Timestamp
       const timeSpan = document.createElement("span");
@@ -375,10 +396,12 @@ async function toggleListening() {
       // Newest entry at the top
       container.insertBefore(row, container.firstChild);
 
-      // Keep max 30 rows — remove oldest and free its memory
+      // Keep max 30 rows — remove oldest and free its blob URL from memory
       const rows = container.querySelectorAll(".log-row");
       if (rows.length > 30) {
-        rows[rows.length - 1].remove();
+        const oldRow = rows[rows.length - 1];
+        if (oldRow.dataset.blobUrl) URL.revokeObjectURL(oldRow.dataset.blobUrl);
+        oldRow.remove();
       }
 
       return id;
@@ -486,6 +509,32 @@ async function toggleListening() {
     function clearError() {
       document.getElementById("errorMsg").style.display = "none";
     }
+
+    // On page load: ping /health. If no response in 3s, show the cold-start banner.
+    // Keeps retrying every 5s until the backend is up, then hides the banner.
+    async function checkBackendHealth() {
+      const banner = document.getElementById("coldStartBanner");
+
+      const showBannerTimer = setTimeout(() => {
+        banner.style.display = "block";
+      }, 3000);
+
+      while (true) {
+        try {
+          const controller = new AbortController();
+          setTimeout(() => controller.abort(), 5000);
+          const res = await fetch(`${BACKEND_URL}/health`, { signal: controller.signal });
+          if (res.ok) {
+            clearTimeout(showBannerTimer);
+            banner.style.display = "none";
+            return;
+          }
+        } catch (e) {}
+        await new Promise(r => setTimeout(r, 5000));
+      }
+    }
+
+    checkBackendHealth();
   </script>
 
 </body>
