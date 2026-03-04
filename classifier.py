@@ -62,7 +62,7 @@ MODES = {
 }
 
 # How many consecutive detections before we alert for knock-type sounds
-KNOCK_THRESHOLD = 2
+KNOCK_THRESHOLD = 1
 MIN_CONFIDENCE = 0.40  # ignore anything below 40% confidence
 
 # --- State ---
