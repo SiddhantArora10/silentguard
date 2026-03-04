@@ -24,8 +24,8 @@ SilentGuard listens to your environment using your microphone and uses AI to cla
 
 ### Features
 
-- **Real-time sound classification** — YAMNet classifies 521 sound categories from your mic every 2 seconds
-- **Smart alerts** — only triggers above 40% confidence, and knock-type sounds need 2 consecutive detections
+- **Real-time sound classification** — AST model classifies 527 sound categories from your mic every 2 seconds
+- **Smart alerts** — only triggers above 40% confidence
 - **Name detection** — Whisper speech-to-text listens for your name being called, sends an alert when heard
 - **3 listening modes** — switch between Sleep, Focus, and Music depending on your situation
 - **Telegram notifications** — instant phone alert with the sound name and mode label
@@ -115,20 +115,22 @@ TELEGRAM_BOT_TOKEN=your_token_here
 TELEGRAM_CHAT_ID=your_chat_id_here
 ```
 
-### 6. Run the app
+### 6. Run the backend
 
 ```bash
-streamlit run app.py
+uvicorn api:app --reload
 ```
+
+Then open `docs/index.html` in your browser, or use the live frontend at https://siddhantarora10.github.io/silentguard.
 
 ---
 
 ## Demo
 
-The dashboard shows what SilentGuard is hearing in real-time:
+The live page shows what SilentGuard is hearing in real-time:
 
-- **Currently Hearing** — the sound YAMNet detected, with confidence score
-- **Recent Alerts** — log of everything it alerted you about
+- **Detection Log** — every 2-second chunk classified, with confidence score and audio playback
+- **Alerts Sent** — only the sounds that triggered a Telegram notification
 
 When a critical sound is detected, a Telegram message arrives on your phone instantly.
 
@@ -136,7 +138,7 @@ When a critical sound is detected, a Telegram message arrives on your phone inst
 
 ## Built By
 
-**Siddhant Arora** — BTech CSE + Data Science, PEC Chandigarh
+**Siddhant Arora** — BTech CSE (Specialization in Data Science), PEC Chandigarh
 
 I'm hearing-impaired. I built this because I needed it. Most accessibility tools are built by people who imagine the problem. I live it.
 
