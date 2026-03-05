@@ -30,6 +30,15 @@ MODES = {
             "Thump, thud",
             "Door",
             "Tap",
+            "Tapping",
+            "Wood",
+            "Clicking",
+            "Clapping",
+            "Thud",
+            "Impact",
+            "Resonance",
+            "Smash, crash",
+            "Scratching",
         ],
     },
 
@@ -57,13 +66,18 @@ MODES = {
             "Doorbell",
             "Bang",
             "Door",
+            "Tapping",
+            "Wood",
+            "Clicking",
+            "Thud",
+            "Impact",
         ],
     },
 }
 
 # How many consecutive detections before we alert for knock-type sounds
 KNOCK_THRESHOLD = 1
-MIN_CONFIDENCE = 0.40  # ignore anything below 40% confidence
+MIN_CONFIDENCE = 0.25  # ignore anything below 25% confidence
 
 # --- State ---
 # Tracks how many times in a row we've heard a knock-type sound

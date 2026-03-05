@@ -69,6 +69,13 @@ def decode_audio(audio_bytes: bytes) -> np.ndarray:
     if np.abs(audio).max() > 1.0:
         audio = audio / 32768.0
 
+    # Amplify quiet audio — browser mic capture is often low volume
+    # RMS measures overall loudness. If it's very quiet, boost it so AST can hear it.
+    rms = np.sqrt(np.mean(audio ** 2))
+    if rms < 0.02:
+        audio = audio * 4.0
+        audio = np.clip(audio, -1.0, 1.0)  # prevent distortion from over-amplifying
+
     # Resample from 48kHz → 16kHz using linear interpolation
     # (same approach as the original app.py)
     if src_sr != 16000:
