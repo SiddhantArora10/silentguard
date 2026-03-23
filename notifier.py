@@ -16,15 +16,20 @@ def send_alert(sound_name, confidence):
 
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
 
-    response = requests.post(url, data={
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": message
-    })
+    try:
+        response = requests.post(url, data={
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": message
+        }, timeout=5)
 
-    if response.status_code == 200:
-        print(f"Alert sent: {sound_name}")
-    else:
-        print(f"Failed to send alert. Error: {response.text}")
+        if response.status_code == 200:
+            print(f"Alert sent: {sound_name}")
+        else:
+            print(f"Failed to send alert. Error: {response.text}")
+    except requests.exceptions.ConnectionError:
+        print(f"[notifier] Telegram unreachable — alert not sent: {sound_name}")
+    except Exception as e:
+        print(f"[notifier] Error sending alert: {e}")
 
 
 # Test it directly when you run this file
