@@ -1,3 +1,12 @@
+---
+title: SilentGuard
+emoji: 🔔
+colorFrom: blue
+colorTo: purple
+sdk: docker
+app_port: 7860
+---
+
 # SilentGuard 🔔
 
 **AI-powered sound awareness for the hearing-impaired.**

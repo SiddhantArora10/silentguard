@@ -14,4 +14,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy only the app code (not .venv, docs, .git, etc.)
 COPY api.py classifier.py name_detector.py notifier.py ./
 
-CMD uvicorn api:app --host 0.0.0.0 --port $PORT
+EXPOSE 7860
+CMD uvicorn api:app --host 0.0.0.0 --port 7860
