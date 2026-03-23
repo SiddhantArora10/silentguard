@@ -64,7 +64,7 @@ Browser mic → MediaRecorder (2s chunks) → POST → FastAPI backend
 ```
 
 1. Browser captures 2 seconds of mic audio using MediaRecorder API
-2. Sends it as an HTTP POST to the FastAPI backend (Railway)
+2. Sends it as an HTTP POST to the FastAPI backend (HuggingFace Spaces)
 3. Backend runs it through **AST** — an audio classifier trained on 527 AudioSet categories
 4. If a match is found above 40% confidence, checks if it matters in the current mode
 5. If speech is detected, **Whisper** transcribes it and checks if your name was called
@@ -81,7 +81,7 @@ Browser mic → MediaRecorder (2s chunks) → POST → FastAPI backend
 | **Whisper (OpenAI)** | Speech-to-text for name detection (lazy-loaded, tiny model) |
 | **Telegram Bot API** | Sends phone alerts when sounds are detected |
 | **HTML/JS (MediaRecorder)** | Browser frontend — captures 2s audio chunks, POSTs to backend |
-| **Railway** | Hosts the FastAPI backend |
+| **HuggingFace Spaces** | Hosts the FastAPI backend (Docker, 16GB RAM free tier) |
 | **GitHub Pages** | Hosts the static frontend |
 | **Python** | Everything is Python |
 
